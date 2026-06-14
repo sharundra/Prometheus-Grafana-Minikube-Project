@@ -1,0 +1,34 @@
+Flask application with metrics
+1. Get the app ready locally
+    a. Run the app and access it at localhost:5001 and access the metrics at localhost:5001/metrics
+
+Deploy flask app on minikube 
+1. Start the Docker desktop
+2. Prepare the dockerfile and build the image -- docker build -t flask-metrics-app:latest .
+3. Create kubemanifest yaml file (flask-app.yaml)
+4. First delete all traces of minikube (minikube delete --all) then start minikube (minikube start) 
+    a. Starting minikube starts the cluster using docker driver and starts primary control plane node. Also, kubectl gets configured to use 
+       minikube cluster.
+    b. minikube image list
+5. Add docker image to minikube cluster -- minikube image load flask-metrics-app:latest
+    a. minikube image list
+6. Apply the kubemanifest file to our cluster -- kubectl apply -f flask-app.yaml (run this command from terminal being in root directory of project).
+    a. This command creates the deployment and service both for us.
+    b. The Deployment (The Factory / The House) -- The Deployment is responsible for running and managing the actual application files.It creates and keeps your application container (the Pod) alive.If the Pod crashes, the Deployment immediately destroys it and builds a brand-new one to replace it.The Catch: Every time a new Pod is created, Kubernetes assigns it a brand-new, random internal IP address. You cannot rely on this IP address because it changes constantly. 
+    c. The Service (The Phone Number / The Doorway) -- The Service is a permanent, unchangeable gateway that sits in front of your Pods. It provides a single, steady IP address and network port (5001) that never changes. It acts as a traffic director. When a user knocks on the Service's "door," the Service looks for the live Pod (using labels) and passes the user through. Even if the Deployment destroys a broken Pod and makes a new one with a different IP address, the Service automatically tracks the change. Your users never notice a disruption.
+    d. Summary (analogy) -- The Deployment builds the restaurant kitchen and hires 1 chef (the Pod) to cook. The Service is the front door and the host standing outside. Customers only talk to the host (Service), and the host passes the order to the chef (Deployment/Pod) in the back.
+7. Access the flask app -- minikube service flask-metrics-app --url
+    a. Access the app at localhost:<port_number> and access the metrics at localhost:<port_number>/metrics
+
+Install Prometheus using helm 
+# Helm -- just like pip is package manager for python (we use python whenever we have to bring any module, library inside Python environment), the same way helm is a package manager for Kubernetes environment. 
+8. Install helm -- brew install helm
+    a. verify -- helm version
+9. Add prometheus ot helm repository -- helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    a. Run this command -- helm repo update 
+    b. (optional) Run -- helm search repo prometheus -- should see various distributions of prometheus
+10. Use helm to install prometheus in the minikube cluster -- helm install prometheus prometheus-community/prometheus --namespace monitoring --create-namespace
+    a. The idea is that there are different namespaces in a cluster (sort of different servers). App is present in a default namespace and a new namespace(sort of server) is created to keep prometheus there. The isolation is needed to ensure robustness i.e. going down of one server doesn't affect other.
+
+
+
