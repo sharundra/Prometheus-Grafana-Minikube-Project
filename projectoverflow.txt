@@ -28,7 +28,45 @@ Install Prometheus using helm
     a. Run this command -- helm repo update 
     b. (optional) Run -- helm search repo prometheus -- should see various distributions of prometheus
 10. Use helm to install prometheus in the minikube cluster -- helm install prometheus prometheus-community/prometheus --namespace monitoring --create-namespace
-    a. The idea is that there are different namespaces in a cluster (sort of different servers). App is present in a default namespace and a new namespace(sort of server) is created to keep prometheus there. The isolation is needed to ensure robustness i.e. going down of one server doesn't affect other.
+    a. The idea is that there are different namespaces in a cluster (sort of different servers or layers in a cluster, every layer has different nodes, every node may have different pods/replicas). App is present in a default namespace and a new namespace(sort of server) is created to keep prometheus there. The isolation is needed to ensure robustness i.e. going down of one server doesn't affect other.
+    b. (Optional) Get the Prometheus server URL by running these commands in the same shell
+        i.  export POD_NAME=$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/name=prometheus,app.kubernetes.io/instance=prometheus" -o jsonpath="{.items[0].metadata.name}")     -- prometheus server related info beibg named as POD_NAME
+        ii. kubectl --namespace monitoring port-forward $POD_NAME 9090       -- POD_NAME port forwarded to 9093
+            # So now prometheus is inside cluster which we are accessing on our local port 9090 using port forwarding.
 
+Configure Prometheus to scrape the Flask app 
+11. Get the Flask app service IP -- kubectl get svc (look for flask-metrics-app and note its ClusterIP and port) 
+# 10.111.96.205      5001:30364/TCP
+12. Update the Prometheus ConfigMap to add the Flask app as a scrape target -- kubectl edit configmap prometheus-server -n monitoring -- It will a text file, add given below scrape_configs and save.
+    a. scrape_configs:
+         - job_name: 'flask-app'
+           static_configs:
+                - targets: ['10.111.96.205:5001']
 
+Restart the pod
+13. Get the deployment name -- kubectl get deploy -n monitoring (should see an entry of prometheus-server)
+14. Restart the deployment -- kubectl rollout restart deployment prometheus-server -n monitoring 
+15. Verify the restart -- kubectl get pods -n monitoring
 
+After restarting the pod, verify Prometheus is scraping metrics from the Flask app 
+16. Port forward the Pormetheus dashboard -- kubectl port-forward -n monitoring svc/prometheus-server 9090:80
+17. Verify scraping -- In the prometheus dashboard, search for any flask-app metrics (like total_api_requests_total).
+
+Install Grafana on the minikube cluster
+18. Run the command -- helm repo add grafana https://grafana.github.io/helm-charts
+    a. helm repo update
+19. Install grafana in monitoring namespace -- helm install grafana grafana/grafana -n monitoring --create-namespace
+
+Settings to make grafana accessible locally --
+20. Check grafana installation -- kubectl get pods -n monitoring 
+21. Verify the services created (if grafana is running) -- kubectl get svc -n monitoring (grafana should be running at port 80).
+22. Do port forwarding (only for local testing) -- kubectl port-forward svc/grafana -n monitoring 3000:80
+
+Login to Grafana --
+# usename would be -- admin
+23. Command to find the password (in bash/zsh) -- kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+24. Once logged in to Grafana, navigate to: Connection -> Data Sources -> Add Data Source -> Prometheus -> (since Prometheus is running inside the cluster, use its clusterIP service URL : http://prometheus-server.monitoring.svc.cluster.local:80) -> scroll down and click save and test
+    a. A msg of "Successfully queried the Prometheus API." means Grafana is successfully connected to Prometheus
+
+Create dashboards in Grafana for metrics --
+25. Dashboard --> new dashboard -> add visualization -> prometheus -> select metrics -> run queries
