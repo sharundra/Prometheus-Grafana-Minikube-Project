@@ -69,4 +69,8 @@ Login to Grafana --
     a. A msg of "Successfully queried the Prometheus API." means Grafana is successfully connected to Prometheus
 
 Create dashboards in Grafana for metrics --
-25. Dashboard --> new dashboard -> add visualization -> prometheus -> select metrics -> run queries
+25. Dashboard --> new dashboard -> add visualization -> prometheus -> select metrics -> run queries.
+
+Terminate open services and minikube
+25. ctrl+c and then kill the terminals
+26. minikube stop
